@@ -96,10 +96,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/analytics').then((r) => r.json()).catch(() => null),
-      fetch('/api/surveys').then((r) => r.json()).catch(() => null),
+      fetch(`${import.meta.env.VITE_API_URL || ''}/analytics`).then((r) => r.json()).catch(() => null),
+      fetch(`${import.meta.env.VITE_API_URL || ''}/surveys`).then((r) => r.json()).catch(() => null),
     ]).then(([analytics, surveyList]) => {
-      setGlobalData(!analytics || analytics.total_responses === 0 ? MOCK_ANALYTICS : analytics)
+      setGlobalData(analytics || MOCK_ANALYTICS)
       setSurveys(surveyList && surveyList.length > 0 ? surveyList : MOCK_SURVEYS)
       setLoading(false)
     })
@@ -111,7 +111,7 @@ export default function Dashboard() {
       return
     }
     setSurveyLoading(true)
-    fetch(`/api/analytics/survey/${selectedSurveyId}`)
+    fetch(`${import.meta.env.VITE_API_URL || ''}/analytics/survey/${selectedSurveyId}`)
       .then((r) => r.json())
       .then((json) => {
         if (json.detail) throw new Error(json.detail)
