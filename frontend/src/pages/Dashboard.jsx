@@ -1,17 +1,24 @@
 import { useState, useEffect } from 'react'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import StatCard from '../components/StatCard'
 import ThemePills from '../components/ThemePills'
 import ResponseExplorer from '../components/ResponseExplorer'
-import { MOCK_ANALYTICS, MOCK_TREND } from '../mockData'
+import { MOCK_ANALYTICS, MOCK_TREND, MOCK_SURVEYS, MOCK_SURVEY_ANALYTICS } from '../mockData'
 
 const PIE_COLORS = {
   positive: '#2DD4BF',
   neutral: '#8B909A',
   negative: '#F87171',
+}
+
+// Synthetic daily volume counts aligned to the 30-day trend dates
+const MOCK_VOLUME_COUNTS = [2,1,3,2,4,1,3,2,5,2,1,4,3,2,3,1,4,2,3,4,2,3,1,4,2,3,4,2,3,2]
+
+function buildVolumeData(trendData) {
+  return trendData.map((d, i) => ({ date: d.date, responses: MOCK_VOLUME_COUNTS[i] || 1 }))
 }
 
 function buildPieData(breakdown) {
@@ -22,44 +29,107 @@ function buildPieData(breakdown) {
   ].filter((d) => d.value > 0)
 }
 
-const CustomTooltip = ({ active, payload, label }) => {
+const VolumeTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div style={{
-      background: 'var(--bg-elevated)',
-      border: '1px solid var(--border-subtle)',
-      borderRadius: 8,
-      padding: '8px 14px',
-      fontSize: '0.85rem',
-    }}>
+    <div style={tooltipStyle}>
       <p style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</p>
-      <p style={{ color: 'var(--accent)', fontWeight: 600 }}>{payload[0].value} / 10</p>
+      <p style={{ color: 'var(--accent)', fontWeight: 600 }}>{payload[0].value} responses</p>
+    </div>
+  )
+}
+
+const tooltipStyle = {
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 8,
+  padding: '8px 14px',
+  fontSize: '0.85rem',
+}
+
+function WordCloud({ wordFrequencies }) {
+  if (!wordFrequencies || Object.keys(wordFrequencies).length === 0) {
+    return <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>No word data available.</p>
+  }
+
+  const entries = Object.entries(wordFrequencies)
+  const maxWeight = Math.max(...entries.map(([, w]) => w))
+  const WORD_COLORS = ['#2DD4BF', '#7C9CFF', '#F9A870', '#A78BFA', '#6EE7B7', '#FCA5A5']
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 14px', alignItems: 'center', lineHeight: 1.6 }}>
+      {entries
+        .sort((a, b) => b[1] - a[1])
+        .map(([word, weight], i) => {
+          const ratio = weight / maxWeight
+          const fontSize = 0.72 + ratio * 1.1
+          const opacity = 0.55 + ratio * 0.45
+          const color = WORD_COLORS[i % WORD_COLORS.length]
+          return (
+            <span
+              key={word}
+              style={{
+                fontSize: `${fontSize}rem`,
+                fontWeight: ratio > 0.6 ? 700 : 500,
+                color,
+                opacity,
+                letterSpacing: '-0.01em',
+                cursor: 'default',
+              }}
+            >
+              {word}
+            </span>
+          )
+        })}
     </div>
   )
 }
 
 export default function Dashboard() {
-  const [data, setData] = useState(null)
-  const [trend, setTrend] = useState(MOCK_TREND)
+  const [globalData, setGlobalData] = useState(null)
+  const [volumeData] = useState(() => buildVolumeData(MOCK_TREND))
+  const [surveys, setSurveys] = useState([])
+  const [selectedSurveyId, setSelectedSurveyId] = useState('')
+  const [surveyData, setSurveyData] = useState(null)
+  const [surveyLoading, setSurveyLoading] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/analytics')
+    Promise.all([
+      fetch('/api/analytics').then((r) => r.json()).catch(() => null),
+      fetch('/api/surveys').then((r) => r.json()).catch(() => null),
+    ]).then(([analytics, surveyList]) => {
+      setGlobalData(!analytics || analytics.total_responses === 0 ? MOCK_ANALYTICS : analytics)
+      setSurveys(surveyList && surveyList.length > 0 ? surveyList : MOCK_SURVEYS)
+      setLoading(false)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!selectedSurveyId) {
+      setSurveyData(null)
+      return
+    }
+    setSurveyLoading(true)
+    fetch(`/api/analytics/survey/${selectedSurveyId}`)
       .then((r) => r.json())
       .then((json) => {
-        if (json.total_responses === 0) {
-          setData(MOCK_ANALYTICS)
-        } else {
-          setData(json)
-        }
+        if (json.detail) throw new Error(json.detail)
+        setSurveyData(json)
       })
-      .catch(() => setData(MOCK_ANALYTICS))
-      .finally(() => setLoading(false))
-  }, [])
+      .catch(() => setSurveyData(MOCK_SURVEY_ANALYTICS))
+      .finally(() => setSurveyLoading(false))
+  }, [selectedSurveyId])
 
   if (loading) return <LoadingState />
 
-  const { total_responses, avg_csat_score, sentiment_breakdown, top_themes, recent_responses } = data
+  const isGlobal = !selectedSurveyId
+  const activeData = isGlobal ? globalData : surveyData
+  const responses = isGlobal ? activeData?.recent_responses : activeData?.responses
+
+  if (!activeData || surveyLoading) return <LoadingState />
+
+  const { total_responses, avg_score, sentiment_breakdown, top_themes, word_frequencies } = activeData
   const pieData = buildPieData(sentiment_breakdown)
 
   return (
@@ -68,28 +138,49 @@ export default function Dashboard() {
       <div style={styles.pageHeader}>
         <div>
           <h1 style={styles.pageTitle}>Analytics</h1>
-          <p style={styles.pageSubtitle}>Voice survey insights at a glance</p>
+          <p style={styles.pageSubtitle}>
+            {isGlobal ? 'Voice survey insights at a glance' : activeData.survey_title}
+          </p>
         </div>
-        <div style={styles.lastUpdated}>
-          <span style={styles.dot} />
-          <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-            Live data
-          </span>
+        <div style={styles.headerRight}>
+          <select
+            style={styles.surveySelect}
+            value={selectedSurveyId}
+            onChange={(e) => setSelectedSurveyId(e.target.value)}
+          >
+            <option value="">All Surveys</option>
+            {surveys.map((s) => (
+              <option key={s.uuid} value={s.uuid}>{s.title || s.company}</option>
+            ))}
+          </select>
+          <div style={styles.lastUpdated}>
+            <span style={styles.dot} />
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Live data</span>
+          </div>
         </div>
       </div>
 
       {/* Stats row */}
       <div style={styles.statsRow}>
-        <StatCard
-          label="Avg CSAT Score"
-          value={avg_csat_score || '—'}
-          sub="out of 10"
-          accent
-        />
+        {isGlobal ? (
+          <StatCard
+            label="Survey Count"
+            value={surveys.length}
+            sub="total surveys"
+            accent
+          />
+        ) : (
+          <StatCard
+            label="Avg Score"
+            value={avg_score != null ? avg_score : '—'}
+            sub="out of 10"
+            accent
+          />
+        )}
         <StatCard
           label="Total Responses"
           value={total_responses}
-          sub="all time"
+          sub={isGlobal ? 'all time' : 'this survey'}
         />
         <StatCard
           label="Positive"
@@ -110,39 +201,47 @@ export default function Dashboard() {
 
       {/* Charts row */}
       <div style={styles.chartsRow}>
-        {/* Line chart */}
+        {/* Left panel */}
         <div style={{ ...styles.chartCard, flex: 2 }}>
-          <p style={styles.chartTitle}>CSAT Score Trend <span style={styles.chartSub}>— last 30 days</span></p>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={trend} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
-              <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="4 4" />
-              <XAxis
-                dataKey="date"
-                tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-                interval={4}
-              />
-              <YAxis
-                domain={[5, 10]}
-                tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="var(--accent)"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, fill: 'var(--accent)', stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {isGlobal ? (
+            <>
+              <p style={styles.chartTitle}>
+                Response Volume <span style={styles.chartSub}>— last 30 days</span>
+              </p>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={volumeData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+                  <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="4 4" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    interval={4}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fill: 'var(--text-secondary)', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip content={<VolumeTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+                  <Bar dataKey="responses" fill="var(--accent)" opacity={0.8} radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </>
+          ) : (
+            <>
+              <p style={styles.chartTitle}>
+                Word Cloud <span style={styles.chartSub}>— aggregated across all responses</span>
+              </p>
+              <div style={{ minHeight: 220, display: 'flex', alignItems: 'center' }}>
+                <WordCloud wordFrequencies={word_frequencies} />
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Pie chart */}
+        {/* Sentiment pie */}
         <div style={{ ...styles.chartCard, flex: 1, minWidth: 220 }}>
           <p style={styles.chartTitle}>Sentiment</p>
           <ResponsiveContainer width="100%" height={220}>
@@ -167,30 +266,32 @@ export default function Dashboard() {
               />
               <Tooltip
                 formatter={(value, name) => [value, name]}
-                contentStyle={{
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 8,
-                  fontSize: '0.85rem',
-                }}
+                contentStyle={tooltipStyle}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
 
+      {/* Word cloud row — global view only */}
+      {isGlobal && (
+        <div style={{ ...styles.chartCard, marginBottom: 20 }}>
+          <p style={styles.chartTitle}>
+            Word Cloud <span style={styles.chartSub}>— aggregated across all surveys</span>
+          </p>
+          <WordCloud wordFrequencies={word_frequencies} />
+        </div>
+      )}
+
       {/* Themes + Responses row */}
       <div style={styles.bottomRow}>
-        {/* Themes */}
         <div style={{ ...styles.panel, flex: '0 0 280px' }}>
           <p style={styles.chartTitle}>Top Themes</p>
           <ThemePills themes={top_themes} />
         </div>
-
-        {/* Response explorer */}
         <div style={{ ...styles.panel, flex: 1, minWidth: 0 }}>
-          <p style={styles.chartTitle}>Recent Responses</p>
-          <ResponseExplorer responses={recent_responses} />
+          <p style={styles.chartTitle}>{isGlobal ? 'Recent Responses' : 'All Responses'}</p>
+          <ResponseExplorer responses={responses || []} />
         </div>
       </div>
     </div>
@@ -217,6 +318,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 28,
+    flexWrap: 'wrap',
+    gap: 12,
   },
   pageTitle: {
     fontSize: '1.5rem',
@@ -228,6 +331,21 @@ const styles = {
   pageSubtitle: {
     fontSize: '0.88rem',
     color: 'var(--text-secondary)',
+  },
+  headerRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+  surveySelect: {
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: 8,
+    color: 'var(--text-primary)',
+    fontSize: '0.85rem',
+    padding: '6px 12px',
+    cursor: 'pointer',
+    outline: 'none',
   },
   lastUpdated: {
     display: 'flex',

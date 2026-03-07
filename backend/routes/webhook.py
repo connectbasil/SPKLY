@@ -55,10 +55,13 @@ async def vapi_webhook(payload: dict, db: Session = Depends(get_db)):
         response = SurveyResponse(
             session_id=session.id if session else None,
             transcript=transcript,
-            csat_score=analysis["csat_score"],
             sentiment=analysis["sentiment"],
             themes=json.dumps(analysis["themes"]),
             summary=analysis["summary"],
+            key_insights=json.dumps(analysis["key_insights"]),
+            score=analysis["score"],
+            score_context=analysis.get("score_context"),
+            word_frequencies=json.dumps(analysis["word_frequencies"]),
         )
         db.add(response)
         db.commit()

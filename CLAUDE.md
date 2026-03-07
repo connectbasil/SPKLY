@@ -92,10 +92,38 @@ Survey types are fully configurable: CSAT, NPS, product feedback, event feedback
 
 ## Current Build Status
 - [x] Phase 1: Project scaffold, UI, mock data
-- [ ] Phase 2: Generic survey builder + Vapi integration ← currently in progress
-- [ ] Phase 3: OpenAI transcript analysis
-- [ ] Phase 4: Email campaign trigger
-- [ ] Phase 5: Deploy live
+- [x] Phase 2: Vapi voice agent integration complete
+  - Voice calls working end-to-end with real Vapi API
+  - Survey context passed dynamically via call metadata
+  - Thank you state shows correctly after call ends
+- [x] Phase 3: OpenAI transcript analysis complete (gpt-4.1-nano)
+- [x] UI improvements: SPKLY rebrand, collapsible sidebar, smart All Surveys vs per-survey dashboard views, word cloud aggregated analytics
+- [ ] Phase 4: Email campaign (deferred)
+- [ ] Phase 5: Deploy live ← NEXT
+
+### Dashboard view notes
+- Sidebar collapse state managed via `useState` in `Sidebar.jsx`
+- All Surveys view: Survey Count stat, Response Volume bar chart, Word Cloud (full-width), Sentiment pie, Themes, Recent Responses
+- Per-survey view: Avg Score (nullable), Word Cloud in left chart panel, Sentiment pie, Themes, All Responses
+
+## Product Vision
+
+### Survey-Level Aggregate Analytics
+Each survey should have its own analytics view showing insights across ALL participants of that survey, not just individual responses.
+
+This includes:
+- Word cloud generated from themes and key insights across all respondents (word size = frequency of mention across participants)
+- Aggregate sentiment breakdown for that specific survey
+- Top themes ranked by how many participants mentioned them
+- Overall summary of what people are saying about that topic
+- Individual response explorer filtered by survey
+
+### Data Model Intent
+- `SurveySession` = one survey campaign (e.g. "Q1 Onboarding Feedback")
+- `SurveyResponse` = one participant's response within that survey
+- Analytics should be available at both levels:
+  - Global (all surveys combined) → current dashboard
+  - Per-survey (one survey, all participants) → to be built
 
 ## Key Conventions
 - No TypeScript, plain JavaScript only

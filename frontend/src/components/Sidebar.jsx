@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 
 const NAV_ITEMS = [
@@ -26,10 +27,33 @@ const NAV_ITEMS = [
 ]
 
 export default function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false)
+
   return (
-    <aside style={styles.aside}>
+    <aside style={{ ...styles.aside, width: collapsed ? 60 : 220 }}>
+      {/* Toggle button */}
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        style={{ ...styles.toggleBtn, justifyContent: collapsed ? 'center' : 'flex-end' }}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ transition: 'transform 0.25s ease', transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
+
       {/* Logo */}
-      <div style={styles.logo}>
+      <div style={{ ...styles.logo, justifyContent: collapsed ? 'center' : 'flex-start' }}>
         <div style={styles.logoMark}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="var(--accent)" strokeWidth="2" />
@@ -37,7 +61,9 @@ export default function Sidebar() {
             <circle cx="12" cy="12" r="1.5" fill="#0F1115" />
           </svg>
         </div>
-        <span style={styles.logoText}>VoicePulse</span>
+        <span style={{ ...styles.logoText, opacity: collapsed ? 0 : 1, maxWidth: collapsed ? 0 : 160 }}>
+          SPKLY
+        </span>
       </div>
 
       <hr style={styles.separator} />
@@ -45,53 +71,89 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav style={styles.nav}>
         {NAV_ITEMS.map(({ to, label, icon }) => (
-          <NavLink key={to} to={to} style={({ isActive }) => ({
-            ...styles.navItem,
-            ...(isActive ? styles.navItemActive : {}),
-          })}>
-            <span style={{ opacity: 0.9, display: 'flex' }}>{icon}</span>
-            <span>{label}</span>
+          <NavLink
+            key={to}
+            to={to}
+            style={({ isActive }) => ({
+              ...styles.navItem,
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              ...(isActive
+                ? collapsed
+                  ? styles.navItemActiveCollapsed
+                  : styles.navItemActive
+                : {}),
+            })}
+          >
+            <span style={{ display: 'flex', flexShrink: 0 }}>{icon}</span>
+            <span style={{ ...styles.navLabel, opacity: collapsed ? 0 : 1, maxWidth: collapsed ? 0 : 160 }}>
+              {label}
+            </span>
           </NavLink>
         ))}
       </nav>
 
       {/* Bottom badge */}
-      <div style={styles.footer}>
+      <div style={{ ...styles.footer, justifyContent: collapsed ? 'center' : 'flex-start' }}>
         <div style={styles.footerBadge}>
           <span style={styles.dot} />
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>API Connected</span>
+          <span style={{ ...styles.footerText, opacity: collapsed ? 0 : 1, maxWidth: collapsed ? 0 : 160 }}>
+            API Connected
+          </span>
         </div>
       </div>
+
+      <style>{sidebarCSS}</style>
     </aside>
   )
 }
 
+const sidebarCSS = `
+  aside { transition: width 0.25s ease; }
+`
+
 const styles = {
   aside: {
-    width: 220,
     minHeight: '100vh',
     background: 'var(--bg-base)',
     borderRight: '1px solid var(--border-subtle)',
     display: 'flex',
     flexDirection: 'column',
-    padding: '20px 0',
+    padding: '12px 0 20px',
     flexShrink: 0,
+    overflow: 'hidden',
+  },
+  toggleBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    width: '100%',
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+    padding: '6px 14px',
+    marginBottom: 8,
+    transition: 'color 0.15s ease',
   },
   logo: {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    padding: '0 20px 16px',
+    padding: '0 16px 16px',
+    overflow: 'hidden',
   },
   logoMark: {
     display: 'flex',
     alignItems: 'center',
+    flexShrink: 0,
   },
   logoText: {
     fontSize: '1.05rem',
     fontWeight: 700,
     color: 'var(--text-primary)',
     letterSpacing: '-0.02em',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    transition: 'opacity 0.2s ease, max-width 0.25s ease',
   },
   separator: {
     border: 'none',
@@ -102,14 +164,14 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: 2,
-    padding: '0 10px',
+    padding: '0 8px',
     flex: 1,
   },
   navItem: {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    padding: '9px 12px',
+    padding: '9px 10px',
     borderRadius: 8,
     color: 'var(--text-secondary)',
     fontSize: '0.9rem',
@@ -117,23 +179,46 @@ const styles = {
     textDecoration: 'none',
     transition: 'color 0.15s ease, background 0.15s ease',
     borderLeft: '3px solid transparent',
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
   },
   navItemActive: {
     color: 'var(--text-primary)',
     background: 'var(--bg-surface)',
     borderLeft: '3px solid var(--accent)',
     borderRadius: '0 8px 8px 0',
-    paddingLeft: 9,
+    paddingLeft: 7,
+  },
+  navItemActiveCollapsed: {
+    color: 'var(--accent)',
+    background: 'var(--bg-surface)',
+    borderLeft: '3px solid transparent',
+    borderRadius: 8,
+  },
+  navLabel: {
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+    transition: 'opacity 0.2s ease, max-width 0.25s ease',
   },
   footer: {
-    padding: '16px 20px 0',
+    display: 'flex',
+    padding: '16px 16px 0',
     borderTop: '1px solid var(--border-subtle)',
     marginTop: 'auto',
+    overflow: 'hidden',
   },
   footerBadge: {
     display: 'flex',
     alignItems: 'center',
     gap: 7,
+    overflow: 'hidden',
+  },
+  footerText: {
+    fontSize: '0.8rem',
+    color: 'var(--text-secondary)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    transition: 'opacity 0.2s ease, max-width 0.25s ease',
   },
   dot: {
     display: 'inline-block',
@@ -142,5 +227,6 @@ const styles = {
     borderRadius: '50%',
     background: 'var(--accent)',
     boxShadow: '0 0 6px var(--accent)',
+    flexShrink: 0,
   },
 }
