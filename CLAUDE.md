@@ -98,8 +98,13 @@ Survey types are fully configurable: CSAT, NPS, product feedback, event feedback
   - Thank you state shows correctly after call ends
 - [x] Phase 3: OpenAI transcript analysis complete (gpt-4.1-nano)
 - [x] UI improvements: SPKLY rebrand, collapsible sidebar, smart All Surveys vs per-survey dashboard views, word cloud aggregated analytics
-- [ ] Phase 4: Email campaign (deferred)
-- [ ] Phase 5: Deploy live ← NEXT
+- [x] Phase 5: Deploy live ✅
+  - Frontend: https://spkly.vercel.app (Vercel)
+  - Backend: https://spkly-backend-production.up.railway.app (Railway)
+  - CORS resolved: `allow_credentials=False` + `Origin` header required by middleware (not a bug)
+- [ ] Phase 4: Email campaign (deferred — not part of MVP)
+
+**MVP is complete.** Next focus: productionisation features.
 
 ### Dashboard view notes
 - Sidebar collapse state managed via `useState` in `Sidebar.jsx`
@@ -139,3 +144,74 @@ This includes:
 - Font: Geist
 - Dark theme only, never add light mode
 - Follow existing elevation pattern: bg-base → bg-surface → bg-elevated
+
+---
+
+## Next Phase — Voice Feedback Intelligence Platform
+
+### Vision
+
+SPKLY is evolving into a generic voice-first feedback intelligence platform. Any organisation can create structured feedback campaigns, deploy them via voice AI, and get back rich analysed insights.
+
+### Survey Types
+
+Scored: CSAT (1-5), NPS (0-10), eNPS, Star Rating
+
+Unscored: Product Feedback, Personal/Peer Feedback, Event Feedback, Research Interviews
+
+### Survey Creation
+
+Fields: name, type, intent, audience, tone, scoring toggle, custom questions
+
+SPKLY uses metadata to dynamically generate voice agent prompts automatically.
+
+### Campaign Management
+
+Campaign = survey + contact list
+
+Features: CSV upload, schedule, delivery channel, expiry, reminders
+
+Status: Draft → Active → Paused → Closed
+
+### Contacts & Respondents
+
+- Per-respondent status: Invited → Started → Completed → Bounced
+
+- Individual view: transcript, sentiment, score, themes, quotes
+
+### Dashboard Levels
+
+- Platform: all surveys aggregate
+
+- Survey: drill down with respondent list and individual response view
+
+### Intelligence Layer
+
+Trend alerts, theme clustering, quote extraction, comparison view, benchmarks
+
+### Build Priority
+
+1. Survey creation form
+
+2. Contacts management
+
+3. Campaign view
+
+4. Individual response view
+
+5. Dynamic voice agent prompting
+
+6. Email/SMS via Resend.com
+
+7. Multi-user support
+
+8. Export (CSV/PDF)
+
+### Deployment
+
+- Frontend: spkly.vercel.app (Vercel)
+
+- Backend: spkly-backend-production.up.railway.app (Railway)
+
+- GitHub: connectbasil/SPKLY
+
