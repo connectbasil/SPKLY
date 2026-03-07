@@ -67,6 +67,13 @@ Both services run in **demo/mock mode** without API keys configured.
 - **`pages/Admin.jsx`** — Fetches `GET /api/surveys` and calls `POST /api/surveys`; falls back to `mockData.js`
 - **`mockData.js`** — Realistic placeholder data used when the backend is unavailable
 
+### Vapi integration
+
+- Configured in "Assistant speaks first with model generated message" mode
+- The opening message is dynamically generated based on `survey_context` passed in call metadata
+- No hardcoded first message — fully driven by survey configuration
+- One Vapi assistant handles all survey types via dynamic system prompt injection
+
 ### API proxy
 
 Vite proxies `/api/*` → `http://localhost:8000` (strips the `/api` prefix), so frontend fetch calls use `/api/surveys`, `/api/analytics`, `/api/webhook/vapi`.
@@ -78,14 +85,17 @@ Dark-mode only. CSS variables defined in `src/index.css`:
 - Geist font family, glassmorphism on the survey hero card
 
 ## Project Context
-This is a portfolio project showcasing a voice-based CSAT survey application.
+**SPKLY** — a template-based voice feedback platform that collects feedback on anything through conversational AI voice agents.
 Built by Basil Roy as a learning project using Claude Code.
+
+Survey types are fully configurable: CSAT, NPS, product feedback, event feedback, employee surveys, or any custom use case. Each survey is defined by a name, goal, tone (formal/casual/empathetic), and a list of custom questions. A single Vapi assistant handles all survey types via dynamic system prompt injection — survey config is passed at call time to drive agent behaviour.
 
 ## Current Build Status
 - [x] Phase 1: Project scaffold, UI, mock data
-- [ ] Phase 2: Vapi voice agent integration (real calls)
-- [ ] Phase 3: OpenAI transcript analysis (real GPT-4o)
-- [ ] Phase 4: Email campaign trigger (Resend.com)
+- [ ] Phase 2: Generic survey builder + Vapi integration ← currently in progress
+- [ ] Phase 3: OpenAI transcript analysis
+- [ ] Phase 4: Email campaign trigger
+- [ ] Phase 5: Deploy live
 
 ## Key Conventions
 - No TypeScript, plain JavaScript only
