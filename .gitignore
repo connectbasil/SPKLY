@@ -1,0 +1,23 @@
+# Environment files - NEVER commit these
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.pyc
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.DS_Store
+
+# Database
+*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
