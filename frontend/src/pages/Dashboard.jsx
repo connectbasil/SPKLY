@@ -95,11 +95,19 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+
+    function apiFetch(path) {
+      return fetch(`${base}${path}`)
+        .then((r) => { if (!r.ok) throw new Error(r.status); return r.json() })
+        .catch(() => null)
+    }
+
     Promise.all([
-      fetch(`${import.meta.env.VITE_API_URL || ''}/analytics`).then((r) => r.json()).catch(() => null),
-      fetch(`${import.meta.env.VITE_API_URL || ''}/surveys`).then((r) => r.json()).catch(() => null),
+      apiFetch('/analytics'),
+      apiFetch('/surveys'),
     ]).then(([analytics, surveyList]) => {
-      setGlobalData(analytics || MOCK_ANALYTICS)
+      setGlobalData(analytics && analytics.total_responses != null ? analytics : MOCK_ANALYTICS)
       setSurveys(surveyList && surveyList.length > 0 ? surveyList : MOCK_SURVEYS)
       setLoading(false)
     })
@@ -111,12 +119,10 @@ export default function Dashboard() {
       return
     }
     setSurveyLoading(true)
-    fetch(`${import.meta.env.VITE_API_URL || ''}/analytics/survey/${selectedSurveyId}`)
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.detail) throw new Error(json.detail)
-        setSurveyData(json)
-      })
+    const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+    fetch(`${base}/analytics/survey/${selectedSurveyId}`)
+      .then((r) => { if (!r.ok) throw new Error(r.status); return r.json() })
+      .then((json) => setSurveyData(json))
       .catch(() => setSurveyData(MOCK_SURVEY_ANALYTICS))
       .finally(() => setSurveyLoading(false))
   }, [selectedSurveyId])
