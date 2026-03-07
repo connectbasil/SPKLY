@@ -2,14 +2,27 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import WaveformAnimation from '../components/WaveformAnimation'
 
-const VAPI_ASSISTANT_ID = import.meta.env.VITE_VAPI_ASSISTANT_ID || ''
 const VAPI_API_KEY = import.meta.env.VITE_VAPI_API_KEY || ''
+const VAPI_ASSISTANT_ID = import.meta.env.VITE_VAPI_ASSISTANT_ID || ''
 
-// States: idle | connecting | active | ended
+const DEFAULT_SURVEY_CONTEXT = {
+  goal: 'Collect genuine feedback through natural conversation',
+  tone: 'empathetic',
+  questions: [
+    'How would you describe your overall experience with us?',
+    "What did we do well that you'd like to see us continue?",
+    'Is there anything that frustrated you or could be improved?',
+    'How likely are you to recommend us to a friend or colleague?',
+    "Is there anything else you'd like us to know?",
+  ],
+}
+
+// States: idle | connecting | active | ended | error
 export default function Survey() {
   const { id } = useParams()
   const [callState, setCallState] = useState('idle')
   const [duration, setDuration] = useState(0)
+  const [errorMsg, setErrorMsg] = useState('')
   const vapiRef = useRef(null)
   const timerRef = useRef(null)
 
@@ -23,44 +36,48 @@ export default function Survey() {
   }, [])
 
   async function startCall() {
+    if (!VAPI_API_KEY || !VAPI_ASSISTANT_ID) {
+      setErrorMsg('Voice survey is not configured. Please contact support.')
+      setCallState('error')
+      return
+    }
+
     setCallState('connecting')
 
-    // If Vapi keys are present, use real SDK
-    if (VAPI_API_KEY && VAPI_ASSISTANT_ID) {
-      try {
-        const { default: Vapi } = await import('@vapi-ai/web')
-        const vapi = new Vapi(VAPI_API_KEY)
-        vapiRef.current = vapi
+    try {
+      const { default: Vapi } = await import('@vapi-ai/web')
+      const vapi = new Vapi(VAPI_API_KEY)
+      vapiRef.current = vapi
 
-        vapi.on('call-start', () => {
-          setCallState('active')
-          timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000)
-        })
-
-        vapi.on('call-end', () => {
-          setCallState('ended')
-          clearInterval(timerRef.current)
-        })
-
-        vapi.on('error', (err) => {
-          console.error('Vapi error:', err)
-          setCallState('idle')
-          clearInterval(timerRef.current)
-        })
-
-        await vapi.start(VAPI_ASSISTANT_ID, {
-          metadata: { survey_uuid: id },
-        })
-      } catch (err) {
-        console.error('Failed to start Vapi call:', err)
-        setCallState('idle')
-      }
-    } else {
-      // Demo mode — simulate a call
-      setTimeout(() => {
+      vapi.on('call-start', () => {
         setCallState('active')
         timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000)
-      }, 1200)
+      })
+
+      vapi.on('call-end', () => {
+        setCallState('ended')
+        clearInterval(timerRef.current)
+      })
+
+      vapi.on('error', (err) => {
+        console.error('Vapi error:', err)
+        setErrorMsg('Something went wrong. Please try again.')
+        setCallState('error')
+        clearInterval(timerRef.current)
+      })
+
+      await vapi.start(VAPI_ASSISTANT_ID, {
+        metadata: {
+          survey_context: {
+            survey_id: id,
+            ...DEFAULT_SURVEY_CONTEXT,
+          },
+        },
+      })
+    } catch (err) {
+      console.error('Failed to start Vapi call:', err)
+      setErrorMsg('Failed to connect. Please check your connection and try again.')
+      setCallState('error')
     }
   }
 
@@ -70,6 +87,12 @@ export default function Survey() {
       try { vapiRef.current.stop() } catch (_) {}
     }
     setCallState('ended')
+  }
+
+  function retry() {
+    setCallState('idle')
+    setErrorMsg('')
+    setDuration(0)
   }
 
   function formatDuration(secs) {
@@ -91,7 +114,7 @@ export default function Survey() {
             <path d="M8 12s1.5-3 4-3 4 3 4 3-1.5 3-4 3-4-3-4-3z" fill="var(--accent)" opacity="0.8" />
             <circle cx="12" cy="12" r="1.5" fill="#0F1115" />
           </svg>
-          <span style={styles.logoText}>VoicePulse</span>
+          <span style={styles.logoText}>SPKLY</span>
         </div>
 
         {/* Card */}
@@ -137,6 +160,16 @@ export default function Survey() {
                     </p>
                   </div>
                 )}
+                {callState === 'error' && (
+                  <div style={styles.errorArea}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F87171" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <p style={styles.errorText}>{errorMsg}</p>
+                  </div>
+                )}
               </div>
 
               {/* CTA */}
@@ -156,15 +189,17 @@ export default function Survey() {
                 </button>
               )}
               {callState === 'active' && (
-                <button
-                  style={styles.endBtn}
-                  onClick={endCall}
-                >
+                <button style={styles.endBtn} onClick={endCall}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                   End Call
+                </button>
+              )}
+              {callState === 'error' && (
+                <button className="btn-primary" style={styles.cta} onClick={retry}>
+                  Try Again
                 </button>
               )}
 
@@ -175,12 +210,6 @@ export default function Survey() {
                   ? 'Speak naturally — our AI is listening.'
                   : ''}
               </p>
-
-              {!VAPI_API_KEY && callState === 'idle' && (
-                <div style={styles.demoBanner}>
-                  Demo mode — add VITE_VAPI_API_KEY to enable live calls
-                </div>
-              )}
             </>
           )}
         </div>
@@ -310,6 +339,18 @@ const styles = {
     alignItems: 'center',
     gap: 12,
   },
+  errorArea: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 10,
+  },
+  errorText: {
+    fontSize: '0.85rem',
+    color: '#F87171',
+    textAlign: 'center',
+    maxWidth: 300,
+  },
   statusText: {
     fontSize: '0.85rem',
     color: 'var(--text-secondary)',
@@ -354,16 +395,6 @@ const styles = {
     textAlign: 'center',
     minHeight: 18,
   },
-  demoBanner: {
-    marginTop: 16,
-    padding: '8px 14px',
-    background: 'rgba(251,191,36,0.08)',
-    border: '1px solid rgba(251,191,36,0.2)',
-    borderRadius: 8,
-    fontSize: '0.78rem',
-    color: '#FBBF24',
-    textAlign: 'center',
-  },
   footer: {
     fontSize: '0.78rem',
     color: 'var(--text-secondary)',
@@ -373,7 +404,6 @@ const styles = {
     color: 'var(--text-primary)',
     fontSize: '0.75rem',
   },
-  // Thank you state
   thankYou: {
     display: 'flex',
     flexDirection: 'column',
