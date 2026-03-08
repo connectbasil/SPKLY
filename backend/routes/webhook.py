@@ -1,8 +1,9 @@
 import json
+import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import SurveySession, SurveyResponse
+from models import SurveySession, SurveyResponse, Contact
 from analyzer import analyze_transcript
 
 router = APIRouter()
@@ -41,12 +42,21 @@ async def vapi_webhook(payload: dict, db: Session = Depends(get_db)):
         call_data = message.get("call", {})
         metadata = call_data.get("metadata", {})
         survey_uuid = metadata.get("survey_uuid")
+        contact_id = metadata.get("contact_id")
 
         session = None
         if survey_uuid:
             session = db.query(SurveySession).filter(
                 SurveySession.uuid == survey_uuid
             ).first()
+
+        # Mark contact as completed if present
+        if contact_id:
+            contact = db.query(Contact).filter(Contact.id == int(contact_id)).first()
+            if contact:
+                contact.status = "completed"
+                contact.completed_at = datetime.datetime.utcnow()
+                db.add(contact)
 
         # Analyze transcript
         analysis = analyze_transcript(transcript)

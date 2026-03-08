@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
-from routes import webhook, surveys, analytics
+from routes import webhook, surveys, analytics, contacts
 
 Base.metadata.create_all(bind=engine)
 
@@ -22,6 +22,7 @@ app.add_middleware(
 app.include_router(webhook.router, tags=["Webhook"])
 app.include_router(surveys.router, tags=["Surveys"])
 app.include_router(analytics.router, tags=["Analytics"])
+app.include_router(contacts.router, tags=["Contacts"])
 
 
 @app.get("/")

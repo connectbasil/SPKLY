@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import WaveformAnimation from '../components/WaveformAnimation'
 
 const VAPI_API_KEY = import.meta.env.VITE_VAPI_API_KEY || ''
@@ -20,6 +20,8 @@ const DEFAULT_SURVEY_CONTEXT = {
 // States: idle | connecting | active | ended | error
 export default function Survey() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const contactId = searchParams.get('c')
   const [callState, setCallState] = useState('idle')
   const [duration, setDuration] = useState(0)
   const [errorMsg, setErrorMsg] = useState('')
@@ -68,6 +70,8 @@ export default function Survey() {
 
       await vapi.start(VAPI_ASSISTANT_ID, {
         metadata: {
+          survey_uuid: id,
+          ...(contactId ? { contact_id: contactId } : {}),
           survey_context: {
             survey_id: id,
             ...DEFAULT_SURVEY_CONTEXT,

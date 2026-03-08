@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Survey from './pages/Survey'
 import Dashboard from './pages/Dashboard'
 import Admin from './pages/Admin'
+import Contacts from './pages/Contacts'
 import Sidebar from './components/Sidebar'
 
 function AppLayout({ children }) {
@@ -33,6 +34,14 @@ export default function App() {
           element={
             <AppLayout>
               <Admin />
+            </AppLayout>
+          }
+        />
+        <Route
+          path="/contacts"
+          element={
+            <AppLayout>
+              <Contacts />
             </AppLayout>
           }
         />

@@ -104,7 +104,17 @@ Survey types are fully configurable: CSAT, NPS, product feedback, event feedback
   - CORS resolved: `allow_credentials=False` + `Origin` header required by middleware (not a bug)
 - [ ] Phase 4: Email campaign (deferred — not part of MVP)
 
-**MVP is complete.** Next focus: productionisation features.
+**MVP is complete.** Now building productionisation features.
+
+### Productionisation build order
+1. [x] Survey creation form — rich wizard (type, intent, audience, tone, scoring, questions)
+2. [ ] Contacts management — CSV upload, per-respondent status tracking
+3. [ ] Campaign view — invited vs responded, response rate
+4. [ ] Individual response view — transcript + analysis per respondent
+5. [ ] Dynamic voice agent prompting — use survey metadata to generate questions at call time
+6. [ ] Email/SMS delivery via Resend.com
+7. [ ] Multi-user support — login, workspaces, team access
+8. [ ] Export — CSV or PDF report
 
 ### Dashboard view notes
 - Sidebar collapse state managed via `useState` in `Sidebar.jsx`
