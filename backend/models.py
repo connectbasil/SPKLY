@@ -63,6 +63,7 @@ class SurveyResponse(Base):
     score = Column(Float, nullable=True)
     score_context = Column(String, nullable=True)
     word_frequencies = Column(Text)  # JSON object
+    recording_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     session = relationship("SurveySession", back_populates="responses")

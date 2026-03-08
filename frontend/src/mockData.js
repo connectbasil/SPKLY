@@ -216,6 +216,46 @@ export const MOCK_CONTACTS = [
   { id: 8, name: 'Raj Patel', email: 'raj@startco.in', phone: '+918800000123', status: 'started', invited_at: dateOffset(5), completed_at: null, created_at: dateOffset(5), survey_link: '/survey/demo-survey-001?c=8' },
 ]
 
+export const MOCK_CONTACT_DETAIL = {
+  id: 1,
+  name: 'Priya Nair',
+  email: 'priya@acme.com',
+  phone: null,
+  status: 'completed',
+  invited_at: dateOffset(10),
+  completed_at: dateOffset(8),
+  created_at: dateOffset(10),
+  survey_link: '/survey/demo-survey-001?c=1',
+  timeline: [
+    { event: 'invited',   label: 'Added to survey',    ts: dateOffset(10) },
+    { event: 'started',   label: 'Call started',        ts: dateOffset(8) },
+    { event: 'completed', label: 'Call completed',      ts: dateOffset(8) },
+    { event: 'recorded',  label: 'Response recorded',   ts: dateOffset(8) },
+  ],
+  response: {
+    score: 8.5,
+    score_context: 'overall satisfaction',
+    sentiment: 'positive',
+    themes: ['Onboarding', 'Support Staff', 'Documentation'],
+    summary: 'Priya had a positive onboarding experience, praising the support team\'s responsiveness. She highlighted that the documentation could be expanded with more practical examples but overall felt well-supported throughout setup.',
+    key_insights: [
+      'Onboarding flow was smooth and well-structured',
+      'Support response times exceeded expectations',
+      'Documentation needs more real-world examples',
+    ],
+    transcript: `assistant: Hi Priya, thanks for taking the time to share your feedback today. How would you describe your overall onboarding experience with us?
+user: It was actually pretty good overall. The team was really responsive whenever I had questions.
+assistant: That's great to hear. Was there anything specific that stood out as particularly helpful during onboarding?
+user: The initial setup call was great. The person who helped me really knew the product well. I felt confident by the end of it.
+assistant: Wonderful. And is there anything you felt could have been improved or made easier?
+user: The documentation is a bit sparse in places. I had to ask support for things I felt should have been in the docs. Like, more real-world examples would help a lot.
+assistant: That's really useful feedback. On a scale of 1 to 10, how satisfied are you overall with your experience so far?
+user: I'd say around an 8.5. It's been good, just a few rough edges.
+assistant: Thank you so much, Priya. We really appreciate you sharing that with us today.`,
+    recording_url: null,
+  },
+}
+
 export const MOCK_SURVEY_ANALYTICS = {
   survey_id: 'demo-survey-001',
   survey_title: 'Q1 Onboarding Feedback',
@@ -236,5 +276,20 @@ export const MOCK_SURVEY_ANALYTICS = {
     guidance: 6, welcome: 4, tooltips: 6, videos: 5, advanced: 7,
     simple: 8, options: 9, overwhelming: 6, quick: 8, clear: 7,
   },
+  daily_volumes: (() => {
+    const seed = [0,0,1,0,2,1,0,1,3,0,1,2,0,1,0,2,1,0,3,1,2,0,1,1,0,2,1,3,1,2]
+    return seed.map((count, i) => {
+      const d = new Date('2026-03-07')
+      d.setDate(d.getDate() - (29 - i))
+      return { date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), count }
+    })
+  })(),
+  recent_responses: [
+    { name: 'Priya Nair',    score: 8.5, sentiment: 'positive', date: dateOffset(8)  },
+    { name: 'James Okafor',  score: 7.2, sentiment: 'positive', date: dateOffset(9)  },
+    { name: 'Tom Bergmann',  score: 9.1, sentiment: 'positive', date: dateOffset(7)  },
+    { name: 'Anonymous',     score: 6.0, sentiment: 'neutral',  date: dateOffset(11) },
+    { name: 'Anonymous',     score: 4.5, sentiment: 'negative', date: dateOffset(12) },
+  ],
   responses: MOCK_ANALYTICS.recent_responses.slice(0, 6),
 }

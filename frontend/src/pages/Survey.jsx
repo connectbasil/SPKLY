@@ -4,18 +4,7 @@ import WaveformAnimation from '../components/WaveformAnimation'
 
 const VAPI_API_KEY = import.meta.env.VITE_VAPI_API_KEY || ''
 const VAPI_ASSISTANT_ID = import.meta.env.VITE_VAPI_ASSISTANT_ID || ''
-
-const DEFAULT_SURVEY_CONTEXT = {
-  goal: 'Collect genuine feedback through natural conversation',
-  tone: 'empathetic',
-  questions: [
-    'How would you describe your overall experience with us?',
-    "What did we do well that you'd like to see us continue?",
-    'Is there anything that frustrated you or could be improved?',
-    'How likely are you to recommend us to a friend or colleague?',
-    "Is there anything else you'd like us to know?",
-  ],
-}
+const API = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 
 // States: idle | connecting | active | ended | error
 export default function Survey() {
@@ -47,6 +36,20 @@ export default function Survey() {
     setCallState('connecting')
 
     try {
+      // Fetch dynamic system prompt for this survey (best-effort, non-blocking)
+      let assistantOverrides = undefined
+      try {
+        const res = await fetch(`${API}/prompt/${id}`)
+        if (res.ok) {
+          const { prompt } = await res.json()
+          if (prompt) {
+            assistantOverrides = { model: { systemPrompt: prompt } }
+          }
+        }
+      } catch (_) {
+        // Fall through — start the call without overrides
+      }
+
       const { default: Vapi } = await import('@vapi-ai/web')
       const vapi = new Vapi(VAPI_API_KEY)
       vapiRef.current = vapi
@@ -69,13 +72,10 @@ export default function Survey() {
       })
 
       await vapi.start(VAPI_ASSISTANT_ID, {
+        ...(assistantOverrides ? { assistantOverrides } : {}),
         metadata: {
           survey_uuid: id,
           ...(contactId ? { contact_id: contactId } : {}),
-          survey_context: {
-            survey_id: id,
-            ...DEFAULT_SURVEY_CONTEXT,
-          },
         },
       })
     } catch (err) {

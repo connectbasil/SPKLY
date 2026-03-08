@@ -58,6 +58,16 @@ async def vapi_webhook(payload: dict, db: Session = Depends(get_db)):
                 contact.completed_at = datetime.datetime.utcnow()
                 db.add(contact)
 
+        # Extract recording URL from artifact or top-level
+        artifact = message.get("artifact", {})
+        recording_url = (
+            artifact.get("recordingUrl")
+            or artifact.get("recording_url")
+            or message.get("recordingUrl")
+            or message.get("recording_url")
+            or None
+        )
+
         # Analyze transcript
         analysis = analyze_transcript(transcript)
 
@@ -72,6 +82,7 @@ async def vapi_webhook(payload: dict, db: Session = Depends(get_db)):
             score=analysis["score"],
             score_context=analysis.get("score_context"),
             word_frequencies=json.dumps(analysis["word_frequencies"]),
+            recording_url=recording_url,
         )
         db.add(response)
         db.commit()

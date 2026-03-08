@@ -1,9 +1,10 @@
 import json
+import datetime
 from collections import Counter
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import SurveyResponse, SurveySession
+from models import SurveyResponse, SurveySession, Contact
 
 router = APIRouter()
 
@@ -67,6 +68,51 @@ def _avg_score(responses):
     return round(sum(scores) / len(scores), 1) if scores else None
 
 
+def _daily_volumes(responses):
+    today = datetime.date.today()
+    counts = {}
+    for r in responses:
+        d = r.created_at.date()
+        counts[d] = counts.get(d, 0) + 1
+    result = []
+    for i in range(29, -1, -1):
+        d = today - datetime.timedelta(days=i)
+        result.append({"date": d.strftime("%b %-d"), "count": counts.get(d, 0)})
+    return result
+
+
+def _recent_responses_with_names(responses, session_id, db):
+    # Try to match each response to a contact by proximity of timestamps
+    contacts = db.query(Contact).filter(
+        Contact.survey_id == session_id,
+        Contact.status == "completed",
+        Contact.completed_at.isnot(None),
+    ).all()
+
+    used = set()
+    result = []
+    for r in responses[:5]:
+        name = "Anonymous"
+        best_id, best_diff = None, None
+        for c in contacts:
+            if c.id in used:
+                continue
+            if c.invited_at and c.invited_at <= r.created_at:
+                diff = abs((r.created_at - c.completed_at).total_seconds())
+                if best_diff is None or diff < best_diff:
+                    best_diff, best_id = diff, c.id
+        if best_id is not None and best_diff < 7200:  # within 2 hours
+            name = next(c.name for c in contacts if c.id == best_id)
+            used.add(best_id)
+        result.append({
+            "name": name,
+            "score": r.score,
+            "sentiment": r.sentiment,
+            "date": r.created_at.isoformat(),
+        })
+    return result
+
+
 def _sentiment_breakdown(responses):
     counts = Counter(r.sentiment for r in responses if r.sentiment)
     return {
@@ -119,6 +165,8 @@ def get_survey_analytics(survey_id: str, db: Session = Depends(get_db)):
         "sentiment_breakdown": _sentiment_breakdown(responses),
         "top_themes": _aggregate_themes(responses),
         "word_frequencies": _aggregate_word_frequencies(responses),
+        "daily_volumes": _daily_volumes(responses),
+        "recent_responses": _recent_responses_with_names(responses, session.id, db),
         "responses": [_serialize_response(r) for r in responses],
     }
 

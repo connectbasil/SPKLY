@@ -1,12 +1,13 @@
 import csv
 import io
+import json
 import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 from database import get_db
-from models import SurveySession, Contact
+from models import SurveySession, Contact, SurveyResponse
 
 router = APIRouter()
 
@@ -102,6 +103,71 @@ async def import_contacts(
 
     db.commit()
     return {"imported": len(created), "skipped": skipped, "contacts": created}
+
+
+@router.get("/contacts/{contact_id}")
+def get_contact_detail(contact_id: int, db: Session = Depends(get_db)):
+    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    survey_uuid = contact.session.uuid
+
+    # Build timeline from available timestamps
+    timeline = []
+    if contact.invited_at:
+        timeline.append({"event": "invited", "label": "Added to survey", "ts": contact.invited_at.isoformat()})
+    if contact.status == "bounced":
+        ts = contact.completed_at or contact.created_at
+        timeline.append({"event": "bounced", "label": "Marked as bounced", "ts": ts.isoformat() if ts else None})
+
+    # Find best-match response: most recent for this session created after invited_at
+    response_data = None
+    if contact.status == "completed" and contact.invited_at:
+        response = (
+            db.query(SurveyResponse)
+            .filter(
+                SurveyResponse.session_id == contact.survey_id,
+                SurveyResponse.created_at >= contact.invited_at,
+            )
+            .order_by(SurveyResponse.created_at.desc())
+            .first()
+        )
+        if response:
+            if contact.completed_at:
+                timeline.append({"event": "started",   "label": "Call started",      "ts": contact.completed_at.isoformat()})
+                timeline.append({"event": "completed", "label": "Call completed",     "ts": contact.completed_at.isoformat()})
+            timeline.append({"event": "recorded",  "label": "Response recorded",  "ts": response.created_at.isoformat()})
+
+            themes = []
+            key_insights = []
+            try:
+                themes = json.loads(response.themes) if response.themes else []
+            except Exception:
+                pass
+            try:
+                key_insights = json.loads(response.key_insights) if response.key_insights else []
+            except Exception:
+                pass
+
+            response_data = {
+                "score": response.score,
+                "score_context": response.score_context,
+                "sentiment": response.sentiment,
+                "themes": themes,
+                "summary": response.summary,
+                "key_insights": key_insights,
+                "transcript": response.transcript,
+                "recording_url": response.recording_url,
+            }
+        elif contact.completed_at:
+            timeline.append({"event": "completed", "label": "Call completed", "ts": contact.completed_at.isoformat()})
+
+    return {
+        **_serialize_contact(contact, survey_uuid),
+        "timeline": timeline,
+        "response": response_data,
+    }
 
 
 @router.patch("/contacts/{contact_id}")

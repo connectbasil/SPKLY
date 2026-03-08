@@ -108,13 +108,20 @@ Survey types are fully configurable: CSAT, NPS, product feedback, event feedback
 
 ### Productionisation build order
 1. [x] Survey creation form — rich wizard (type, intent, audience, tone, scoring, questions)
-2. [ ] Contacts management — CSV upload, per-respondent status tracking
+2. [x] Contacts management — CSV upload, per-respondent status tracking, RespondentDrawer with timeline + audio playback
 3. [ ] Campaign view — invited vs responded, response rate
-4. [ ] Individual response view — transcript + analysis per respondent
-5. [ ] Dynamic voice agent prompting — use survey metadata to generate questions at call time
+4. [x] Individual response view — transcript + analysis per respondent (RespondentDrawer slide-in)
+5. [x] Dynamic voice agent prompting — GET /api/prompt/{survey_uuid} generates system prompt from survey metadata; passed as assistantOverrides to vapi.start()
 6. [ ] Email/SMS delivery via Resend.com
 7. [ ] Multi-user support — login, workspaces, team access
 8. [ ] Export — CSV or PDF report
+
+### Dynamic prompting notes
+- `backend/routes/prompt.py`: builds prompt from title, intent, audience, tone, survey_type, scoring_enabled, custom_questions
+- Tone mapping: formal → professional, casual → conversational, empathetic → warm/supportive
+- Questions: uses custom_questions JSON if set; falls back to type-specific defaults for all 8 types (csat/nps/enps/star/product/personal/event/research)
+- Scoring block appended only when scoring_enabled=true and type is csat/nps/enps/star (correct scale per type)
+- `Survey.jsx` fetches prompt before call start; falls back silently if fetch fails (demo mode safe)
 
 ### Dashboard view notes
 - Sidebar collapse state managed via `useState` in `Sidebar.jsx`
@@ -237,10 +244,24 @@ Trend alerts, theme clustering, quote extraction, comparison view, benchmarks
   - Success state with shareable link
 - Priority 2: Contacts management
   - Contact model: name, email, phone, status (Invited/Started/Completed/Bounced)
-  - CSV import, single contact add, per-contact unique survey link
-  - Auto-status update via Vapi webhook when call ends
-  - Contacts page with stats bar and contact table
-  - Sidebar updated: "Admin" renamed to "Surveys", "Contacts" added
+  - CSV import, single contact add, per-contact unique survey link (/survey/{uuid}?c={id})
+  - Auto-status update via Vapi webhook when call ends (contact_id passed in metadata)
+  - Contacts page built (Contacts.jsx still exists but not linked in sidebar)
+- UI/UX: Surveys page restructured
+  - Default state = survey list; wizard moved into full-screen modal (+ Create Survey button)
+  - Survey rows are clickable → drill-down detail view (inline, no new route)
+  - Drill-down: tabbed layout — Analytics tab + Audience tab
+    - Analytics tab: stats bar (Invited/Started/Completed/Bounced/Response Rate), Avg Score card (scored types only), Sentiment pie chart, Word Cloud, Top Themes
+    - Audience tab: Respondents table with inline status dropdown + Copy Link, "+ Add Contacts" CTA (top-right)
+    - Add Contacts is a modal with two tabs: Single Contact form + CSV drag-drop import
+  - Contacts page functionality fully absorbed into survey drill-down
+  - Sidebar: "Contacts" nav item removed; only Dashboard + Surveys remain
+- Priority 3: Individual response view (RespondentDrawer)
+  - GET /contacts/{contact_id} endpoint — returns contact + derived timeline + best-match SurveyResponse
+  - RespondentDrawer.jsx component: slide-in panel from right (420px), dims background
+  - Drawer contents: name/email/status header, Activity timeline (Invited → Started → Completed → Response Recorded), Response section (score, sentiment badge, summary, themes, key insights), Transcript (collapsible, last 6 lines default, expand to full)
+  - Clicking any respondent row in Audience tab opens the drawer
+  - Falls back to MOCK_CONTACT_DETAIL in demo mode
 
 ### Deployed
 - Frontend: spkly.vercel.app (Vercel)
@@ -248,8 +269,116 @@ Trend alerts, theme clustering, quote extraction, comparison view, benchmarks
 - DB reset done on Railway (new schema with Contact model live)
 
 ### Next up
-- UI/UX fixes on existing pages (to be specified)
-- Priority 3: Campaign view (invited vs responded, response rate)
-- Priority 4: Individual response view (transcript + analysis per respondent)
-- Priority 5: Dynamic voice agent prompting using survey metadata
+- Priority 4: Dynamic voice agent prompting using survey metadata
+- Priority 5: Email/SMS delivery via Resend.com
+- Priority 6: Multi-user support (login, workspaces)
+
+---
+
+## Phase 3 Progress Update
+
+### Completed
+- Dashboard tab removed from sidebar; default route redirects to /surveys
+- Surveys page: summary stats bar at top (Total Surveys, Active, Completed)
+- Survey detail: tabbed layout — Analytics tab and Audience tab
+  - Analytics tab: stats bar, avg score (scored surveys only), sentiment pie, word cloud, top themes, response volume chart, recent responses
+  - Audience tab: respondents table + Add Contacts modal (single add + CSV import)
+- Respondent drawer (RespondentDrawer.jsx): slide-in from right, audit trail timeline, response details
+  - Transcript (collapsible), sentiment, themes, score
+  - Audio playback: native HTML5 player with custom dark-themed controls
+  - recording_url stored on SurveyResponse model, parsed from Vapi webhook
+  - Falls back to "No recording available" when recording_url is null
+- Per-survey analytics endpoint: GET /api/analytics/{survey_id}
+  - Returns sentiment, word cloud themes, avg score, daily_volumes, recent_responses
+- Per-contact detail endpoint: GET /api/contacts/{contact_id}
+  - Returns contact info, timeline events, linked SurveyResponse with recording_url
+
+### Next up
+- Priority 5: Dynamic voice agent prompting — use survey metadata to generate questions at call time
 - Priority 6: Email/SMS delivery via Resend.com
+- Priority 7: Multi-user support — login, workspaces, team access
+- Priority 8: Export — CSV or PDF report
+
+---
+
+## Phase 4 Progress Update
+
+### Completed
+- DB migration: run_migrations() in database.py checks for missing columns via pragma_table_info and runs ALTER TABLE safely on every deploy
+  - recording_url column now live on Railway without a DB reset
+  - Uses FastAPI lifespan handler (modern asynccontextmanager pattern, not deprecated on_event)
+
+### Next up
+- Dynamic voice agent prompting (prompt 2 — not yet run)
+- Priority 6: Email/SMS delivery via Resend.com
+- Priority 7: Multi-user support — login, workspaces, team access
+- Priority 8: Export — CSV or PDF report
+- Cleanup: delete Contacts.jsx (unlinked dead code)
+
+---
+
+## Test / Live Mode
+
+### Concept
+Two explicit modes replacing the implicit mock-data fallback pattern:
+- **Test mode** — all data is mock, all actions are simulated (no real API calls)
+- **Live mode** — all data from real backend, all actions hit real API
+
+### Visual indicators
+- Persistent amber border (`#F59E0B`) around entire viewport in test mode
+- Green border (`#10B981`) flashes in momentarily on switch to live mode, then fades out
+- Test/Live pill toggle in sidebar footer (replaces "API Connected" indicator)
+
+### Implementation plan
+- `src/context/ModeContext.jsx` — global mode state, persisted to localStorage, default = "test"
+- All data-fetching pages check `useMode()` — test → mock data, live → real fetch
+- Write operations (create survey, add contact) — test → simulated 600ms delay + success UI, live → real API call
+- Screen border: `position: fixed, inset: 0, pointer-events: none, z-index: 9999, border: 3px solid`
+- ModeProvider wraps App.jsx
+
+### Status
+- [ ] Not yet built
+
+---
+
+## Test / Live Mode — Completed
+
+### Built
+- `src/context/ModeContext.jsx` — mode state ("test" | "live"), persisted to localStorage key `spkly_mode`, defaults to "test". useMode() throws if used outside ModeProvider.
+- `App.jsx` — wrapped in ModeProvider; ScreenBorder component (fixed overlay, pointer-events none, z-index 9999) — amber #F59E0B in test, green #10B981 on live switch (fades to 0 after 2s)
+- `Sidebar.jsx` — TEST/LIVE pill toggle replaces "API Connected" badge
+  - Collapsed: single amber/green dot
+  - Expanded: two-button pill with active state highlight
+- All data-fetching and write operations are mode-aware:
+  - `Admin.jsx` — survey list, contacts, analytics, status update, add contact, CSV import, survey creation
+  - `Dashboard.jsx` — analytics and survey list
+  - `RespondentDrawer.jsx` — contact detail, re-fetches on mode switch
+- Test mode behavior: mock data returned immediately, write operations simulate 600ms delay + success UI, no real API calls
+- Live mode behavior: all real fetch/POST/PATCH calls, no mock fallback
+
+### Status
+- [x] Complete
+
+---
+
+## UI Fixes
+
+### Surveys page + Sidebar layout (completed)
+- Surveys page content now full width (removed maxWidth: 1200, uses width: 100% + boxSizing: border-box)
+- Stats cards use flex: 1 — stretch equally across full row
+- Sidebar collapse toggle moved from top to vertically centered on sidebar right edge (position: absolute, right: -13, top: 50%)
+- Toggle is a 26x26px circle tab that sticks out on the sidebar border, with boxShadow for depth
+- aside uses position: relative + overflow: visible so toggle tab can escape sidebar boundary
+- Inner elements (logo, nav labels, mode pill) retain overflow: hidden for proper text clipping
+- Main content area already correct — flex: 1 on <main> fills remaining width automatically
+
+---
+
+## Mode Switch Toast (completed)
+- ModeToast component in App.jsx — fixed, bottom-center (bottom: 32px, left: 50%, translateX(-50%))
+- Pill-shaped: --bg-surface background, mode-colored border at 25% opacity, colored glow dot + label
+- Timing: appears on mode switch, stays 2s, fades out over 0.4s, unmounts at 2.4s
+- prevMode ref guards against re-triggering on unrelated renders
+- displayedMode snapshot keeps label/color stable during fade-out if mode switches again mid-animation
+- No invisible DOM element when not shown — component is null until triggered
+- Colors: amber #F59E0B (Test Mode), green #10B981 (Live)

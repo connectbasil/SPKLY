@@ -1,19 +1,8 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useMode } from '../context/ModeContext'
 
 const NAV_ITEMS = [
-  {
-    to: '/dashboard',
-    label: 'Dashboard',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" />
-        <rect x="14" y="3" width="7" height="7" />
-        <rect x="14" y="14" width="7" height="7" />
-        <rect x="3" y="14" width="7" height="7" />
-      </svg>
-    ),
-  },
   {
     to: '/admin',
     label: 'Surveys',
@@ -24,46 +13,14 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
-  {
-    to: '/contacts',
-    label: 'Contacts',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-  },
 ]
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
+  const { mode, setMode } = useMode()
 
   return (
     <aside style={{ ...styles.aside, width: collapsed ? 60 : 220 }}>
-      {/* Toggle button */}
-      <button
-        onClick={() => setCollapsed((c) => !c)}
-        style={{ ...styles.toggleBtn, justifyContent: collapsed ? 'center' : 'flex-end' }}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ transition: 'transform 0.25s ease', transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-      </button>
-
       {/* Logo */}
       <div style={{ ...styles.logo, justifyContent: collapsed ? 'center' : 'flex-start' }}>
         <div style={styles.logoMark}>
@@ -104,15 +61,54 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Bottom badge */}
+      {/* Mode toggle */}
       <div style={{ ...styles.footer, justifyContent: collapsed ? 'center' : 'flex-start' }}>
-        <div style={styles.footerBadge}>
-          <span style={styles.dot} />
-          <span style={{ ...styles.footerText, opacity: collapsed ? 0 : 1, maxWidth: collapsed ? 0 : 160 }}>
-            API Connected
-          </span>
-        </div>
+        {collapsed ? (
+          <button
+            onClick={() => setMode(mode === 'test' ? 'live' : 'test')}
+            style={{ ...styles.modeDot, background: mode === 'test' ? '#F59E0B' : '#10B981' }}
+            title={`Switch to ${mode === 'test' ? 'live' : 'test'} mode`}
+          />
+        ) : (
+          <div style={styles.modePill}>
+            {['test', 'live'].map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                style={{
+                  ...styles.modeOption,
+                  background: mode === m ? (m === 'test' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)') : 'transparent',
+                  color: mode === m ? (m === 'test' ? '#F59E0B' : '#10B981') : 'var(--text-secondary)',
+                  fontWeight: mode === m ? 700 : 500,
+                }}
+              >
+                {m.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Edge toggle tab */}
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        style={styles.toggleTab}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ transition: 'transform 0.25s ease', transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
 
       <style>{sidebarCSS}</style>
     </aside>
@@ -130,21 +126,30 @@ const styles = {
     borderRight: '1px solid var(--border-subtle)',
     display: 'flex',
     flexDirection: 'column',
-    padding: '12px 0 20px',
+    padding: '20px 0 20px',
     flexShrink: 0,
-    overflow: 'hidden',
+    overflow: 'visible',
+    position: 'relative',
   },
-  toggleBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    width: '100%',
-    background: 'none',
-    border: 'none',
+  toggleTab: {
+    position: 'absolute',
+    right: -13,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: 26,
+    height: 26,
+    borderRadius: '50%',
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border-subtle)',
     color: 'var(--text-secondary)',
     cursor: 'pointer',
-    padding: '6px 14px',
-    marginBottom: 8,
-    transition: 'color 0.15s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
+    transition: 'background 0.15s ease, color 0.15s ease',
+    padding: 0,
   },
   logo: {
     display: 'flex',
@@ -219,26 +224,32 @@ const styles = {
     marginTop: 'auto',
     overflow: 'hidden',
   },
-  footerBadge: {
+  modePill: {
     display: 'flex',
-    alignItems: 'center',
-    gap: 7,
+    background: 'var(--bg-control)',
+    borderRadius: 8,
+    padding: 3,
+    gap: 2,
     overflow: 'hidden',
   },
-  footerText: {
-    fontSize: '0.8rem',
-    color: 'var(--text-secondary)',
+  modeOption: {
+    flex: 1,
+    padding: '5px 10px',
+    border: 'none',
+    borderRadius: 6,
+    fontSize: '0.72rem',
+    letterSpacing: '0.04em',
+    cursor: 'pointer',
+    transition: 'background 0.15s ease, color 0.15s ease',
     whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    transition: 'opacity 0.2s ease, max-width 0.25s ease',
   },
-  dot: {
-    display: 'inline-block',
-    width: 7,
-    height: 7,
+  modeDot: {
+    width: 10,
+    height: 10,
     borderRadius: '50%',
-    background: 'var(--accent)',
-    boxShadow: '0 0 6px var(--accent)',
+    border: 'none',
+    cursor: 'pointer',
     flexShrink: 0,
+    padding: 0,
   },
 }

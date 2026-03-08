@@ -7,6 +7,7 @@ import StatCard from '../components/StatCard'
 import ThemePills from '../components/ThemePills'
 import ResponseExplorer from '../components/ResponseExplorer'
 import { MOCK_ANALYTICS, MOCK_TREND, MOCK_SURVEYS, MOCK_SURVEY_ANALYTICS } from '../mockData'
+import { useMode } from '../context/ModeContext'
 
 const PIE_COLORS = {
   positive: '#2DD4BF',
@@ -93,39 +94,43 @@ export default function Dashboard() {
   const [surveyData, setSurveyData] = useState(null)
   const [surveyLoading, setSurveyLoading] = useState(false)
   const [loading, setLoading] = useState(true)
+  const { mode } = useMode()
 
   useEffect(() => {
+    setLoading(true)
+    if (mode === 'test') {
+      setGlobalData(MOCK_ANALYTICS)
+      setSurveys(MOCK_SURVEYS)
+      setLoading(false)
+      return
+    }
     const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-
     function apiFetch(path) {
       return fetch(`${base}${path}`)
         .then((r) => { if (!r.ok) throw new Error(r.status); return r.json() })
         .catch(() => null)
     }
-
-    Promise.all([
-      apiFetch('/analytics'),
-      apiFetch('/surveys'),
-    ]).then(([analytics, surveyList]) => {
-      setGlobalData(analytics && analytics.total_responses != null ? analytics : MOCK_ANALYTICS)
-      setSurveys(surveyList && surveyList.length > 0 ? surveyList : MOCK_SURVEYS)
+    Promise.all([apiFetch('/analytics'), apiFetch('/surveys')]).then(([analytics, surveyList]) => {
+      setGlobalData(analytics && analytics.total_responses != null ? analytics : null)
+      setSurveys(surveyList && surveyList.length > 0 ? surveyList : [])
       setLoading(false)
     })
-  }, [])
+  }, [mode])
 
   useEffect(() => {
-    if (!selectedSurveyId) {
-      setSurveyData(null)
+    if (!selectedSurveyId) { setSurveyData(null); return }
+    setSurveyLoading(true)
+    if (mode === 'test') {
+      setTimeout(() => { setSurveyData(MOCK_SURVEY_ANALYTICS); setSurveyLoading(false) }, 300)
       return
     }
-    setSurveyLoading(true)
     const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
     fetch(`${base}/analytics/survey/${selectedSurveyId}`)
       .then((r) => { if (!r.ok) throw new Error(r.status); return r.json() })
       .then((json) => setSurveyData(json))
-      .catch(() => setSurveyData(MOCK_SURVEY_ANALYTICS))
+      .catch(() => setSurveyData(null))
       .finally(() => setSurveyLoading(false))
-  }, [selectedSurveyId])
+  }, [selectedSurveyId, mode])
 
   if (loading) return <LoadingState />
 
