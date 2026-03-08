@@ -1,4 +1,4 @@
-# VoicePulse — Voice CSAT Survey Application
+# SPKLY (Speakly) — Voice Based Survey Application
 
 A portfolio-grade, AI-powered CSAT survey platform that collects customer feedback through conversational voice calls, then analyses and visualises the results.
 
