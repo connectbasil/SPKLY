@@ -225,3 +225,31 @@ Trend alerts, theme clustering, quote extraction, comparison view, benchmarks
 
 - GitHub: connectbasil/SPKLY
 
+
+---
+
+## Phase 2 Progress Update
+
+### Completed
+- Priority 1: Survey creation wizard (3-step: Basics → Context → Configure)
+  - Survey types: CSAT, NPS, eNPS, Star Rating, Product Feedback, Personal, Event, Research
+  - Fields: name, type, intent, audience, tone, scoring toggle, custom questions
+  - Success state with shareable link
+- Priority 2: Contacts management
+  - Contact model: name, email, phone, status (Invited/Started/Completed/Bounced)
+  - CSV import, single contact add, per-contact unique survey link
+  - Auto-status update via Vapi webhook when call ends
+  - Contacts page with stats bar and contact table
+  - Sidebar updated: "Admin" renamed to "Surveys", "Contacts" added
+
+### Deployed
+- Frontend: spkly.vercel.app (Vercel)
+- Backend: spkly-backend-production.up.railway.app (Railway)
+- DB reset done on Railway (new schema with Contact model live)
+
+### Next up
+- UI/UX fixes on existing pages (to be specified)
+- Priority 3: Campaign view (invited vs responded, response rate)
+- Priority 4: Individual response view (transcript + analysis per respondent)
+- Priority 5: Dynamic voice agent prompting using survey metadata
+- Priority 6: Email/SMS delivery via Resend.com
