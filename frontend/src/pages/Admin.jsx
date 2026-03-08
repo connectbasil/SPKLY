@@ -543,11 +543,11 @@ function AddContactsModal({ surveyUuid, onClose, onAdded }) {
       return
     }
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      const text = await file.text()
       const res = await fetch(`${API}/surveys/${surveyUuid}/contacts/import`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'text/plain' },
+        body: text,
       })
       if (!res.ok) throw new Error()
       const result = await res.json()

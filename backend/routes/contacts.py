@@ -2,7 +2,7 @@ import csv
 import io
 import json
 import datetime
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
@@ -67,15 +67,15 @@ def add_contact(survey_uuid: str, data: ContactCreate, db: Session = Depends(get
 @router.post("/surveys/{survey_uuid}/contacts/import")
 async def import_contacts(
     survey_uuid: str,
-    file: UploadFile = File(...),
+    request: Request,
     db: Session = Depends(get_db),
 ):
     session = db.query(SurveySession).filter(SurveySession.uuid == survey_uuid).first()
     if not session:
         raise HTTPException(status_code=404, detail="Survey not found")
 
-    content = await file.read()
-    text = content.decode("utf-8-sig")  # handles BOM from Excel exports
+    body = await request.body()
+    text = body.decode("utf-8-sig")  # handles BOM from Excel exports
     reader = csv.DictReader(io.StringIO(text))
 
     created = []
